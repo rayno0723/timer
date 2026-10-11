@@ -48,6 +48,7 @@
             line-height: 0.9;
         }
 
+        /* 沉浸式全螢幕模式下的極大化數字 */
         .is-fullscreen .timer-number {
             font-size: clamp(8rem, 30vw, 40vh) !important;
             line-height: 0.85;
@@ -55,6 +56,21 @@
 
         .is-fullscreen .colon-separator {
             font-size: clamp(6rem, 22vw, 32vh) !important;
+        }
+
+        /* 透過 CSS 覆蓋實現跨手機 100% 穩定的全螢幕沉浸效果 */
+        .is-fullscreen-overlay {
+            position: fixed !important;
+            inset: 0 !important;
+            z-index: 9999 !important;
+            width: 100vw !important;
+            height: 100dvh !important;
+            background-color: #050505 !important;
+            display: flex !important;
+            flex-direction: column !important;
+            align-items: center !important;
+            justify-content: center !important;
+            padding: 1.5rem !important;
         }
 
         @keyframes urgent-pulse {
@@ -103,9 +119,9 @@
                 <i id="soundIcon" class="fa-solid fa-volume-high text-emerald-400"></i>
                 <span id="soundText" class="hidden sm:inline">音效開</span>
             </button>
-            <button onclick="toggleFullScreen()" class="bg-slate-800/80 hover:bg-slate-700 text-slate-300 hover:text-white px-3 sm:px-4 py-2 sm:py-2.5 rounded-xl border border-slate-700/60 transition flex items-center space-x-2 text-xs sm:text-sm font-medium shadow-lg">
-                <i class="fa-solid fa-expand text-blue-400"></i>
-                <span class="hidden sm:inline">全螢幕</span>
+            <button id="fsTopBtn" onclick="toggleFullScreen()" class="bg-slate-800/80 hover:bg-slate-700 text-slate-300 hover:text-white px-3 sm:px-4 py-2 sm:py-2.5 rounded-xl border border-slate-700/60 transition flex items-center space-x-2 text-xs sm:text-sm font-medium shadow-lg">
+                <i id="fsTopIcon" class="fa-solid fa-expand text-blue-400"></i>
+                <span id="fsTopText" class="hidden sm:inline">全螢幕</span>
             </button>
         </div>
     </header>
@@ -217,6 +233,7 @@
         let isRunning = false;
         let soundEnabled = true;
         let audioCtx = null;
+        let isFullscreenMode = false;
 
         const minutesDisplay = document.getElementById('minutesDisplay');
         const secondsDisplay = document.getElementById('secondsDisplay');
@@ -448,57 +465,38 @@
             }
         }
 
-        // 支援標準與跨瀏覽器前綴的全螢幕切換，並嘗試強制鎖定橫屏
+        // 採用強固的 CSS 沉浸式全螢幕，完美適配所有手機瀏覽器 (iOS Safari / Android)
         function toggleFullScreen() {
-            const elem = document.documentElement;
-            const isFs = document.fullscreenElement || document.webkitFullscreenElement || document.msFullscreenElement;
-
-            if (!isFs) {
-                const requestFn = elem.requestFullscreen || elem.webkitRequestFullscreen || elem.msRequestFullscreen;
-                if (requestFn) {
-                    requestFn.call(elem).then(() => {
-                        // 嘗試自動鎖定為橫屏
-                        if (screen.orientation && screen.orientation.lock) {
-                            screen.orientation.lock('landscape').catch(err => {
-                                console.log('Orientation lock not supported or blocked:', err);
-                            });
-                        }
-                    }).catch((err) => {
-                        console.log('Fullscreen failed:', err.message);
-                    });
-                }
-            } else {
-                const exitFn = document.exitFullscreen || document.webkitExitFullscreen || document.msExitFullscreen;
-                if (exitFn) {
-                    exitFn.call(document);
-                }
-            }
-        }
-
-        // 監聽全螢幕狀態變化 (包含 Safari webkit 支援)
-        function handleFullscreenChange() {
-            const isFs = document.fullscreenElement || document.webkitFullscreenElement || document.msFullscreenElement;
-            if (isFs) {
+            isFullscreenMode = !isFullscreenMode;
+            
+            if (isFullscreenMode) {
                 mainBody.classList.add('is-fullscreen');
+                timerCard.classList.add('is-fullscreen-overlay');
                 appHeader.classList.add('hidden');
                 appFooter.classList.add('hidden');
                 fullscreenControls.classList.remove('hidden');
                 fullscreenControls.classList.add('flex');
                 timerCard.classList.remove('bg-panel/60', 'border', 'border-slate-800/80', 'shadow-2xl');
-                timerCard.classList.add('bg-transparent');
+
+                // 嘗試鎖定螢幕為橫向 (若裝置支援)
+                if (screen.orientation && screen.orientation.lock) {
+                    screen.orientation.lock('landscape').catch(() => {});
+                }
             } else {
                 mainBody.classList.remove('is-fullscreen');
+                timerCard.classList.remove('is-fullscreen-overlay');
                 appHeader.classList.remove('hidden');
                 appFooter.classList.remove('hidden');
                 fullscreenControls.classList.add('hidden');
                 fullscreenControls.classList.remove('flex');
                 timerCard.classList.add('bg-panel/60', 'border', 'border-slate-800/80', 'shadow-2xl');
-                timerCard.classList.remove('bg-transparent');
+
+                // 解除螢幕鎖定
+                if (screen.orientation && screen.orientation.unlock) {
+                    try { screen.orientation.unlock(); } catch (e) {}
+                }
             }
         }
-
-        document.addEventListener('fullscreenchange', handleFullscreenChange);
-        document.addEventListener('webkitfullscreenchange', handleFullscreenChange);
 
         timerCard.addEventListener('click', () => {
             toggleStartPause();
