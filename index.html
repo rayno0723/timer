@@ -4,6 +4,12 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>專業賽事倒數計時器</title>
+
+    <!-- 🍏 iOS 專屬：允許全螢幕獨立 App 模式 (當透過主畫面捷徑開啟時自動生效) -->
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="賽事計時器">
+
     <!-- 🚫 強制瀏覽器不快取 HTML 頁面 -->
     <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
     <meta http-equiv="Pragma" content="no-cache">
@@ -48,7 +54,6 @@
             line-height: 0.9;
         }
 
-        /* 沉浸式全螢幕模式下的極大化數字 */
         .is-fullscreen .timer-number {
             font-size: clamp(8rem, 30vw, 40vh) !important;
             line-height: 0.85;
@@ -58,7 +63,6 @@
             font-size: clamp(6rem, 22vw, 32vh) !important;
         }
 
-        /* 透過 CSS 覆蓋實現跨手機 100% 穩定的全螢幕沉浸效果 */
         .is-fullscreen-overlay {
             position: fixed !important;
             inset: 0 !important;
@@ -115,6 +119,11 @@
         </div>
 
         <div class="flex items-center space-x-2 sm:space-x-3">
+            <!-- 新增：手機安裝導引按鈕 -->
+            <button onclick="openInstallGuide()" class="bg-blue-900/40 hover:bg-blue-900/60 text-blue-300 hover:text-blue-200 px-3 py-2 sm:py-2.5 rounded-xl border border-blue-700/50 transition flex items-center space-x-1.5 text-xs sm:text-sm font-medium shadow-lg">
+                <i class="fa-solid fa-mobile-screen-button"></i>
+                <span class="hidden sm:inline">安裝App</span>
+            </button>
             <button id="soundToggleBtn" onclick="toggleSound()" class="bg-slate-800/80 hover:bg-slate-700 text-slate-300 hover:text-white px-3 sm:px-4 py-2 sm:py-2.5 rounded-xl border border-slate-700/60 transition flex items-center space-x-2 text-xs sm:text-sm font-medium shadow-lg">
                 <i id="soundIcon" class="fa-solid fa-volume-high text-emerald-400"></i>
                 <span id="soundText" class="hidden sm:inline">音效開</span>
@@ -203,6 +212,7 @@
         </div>
     </footer>
 
+    <!-- 自訂時間視窗 -->
     <div id="customModal" class="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
         <div class="bg-panel border border-slate-800 rounded-3xl p-6 md:p-8 max-w-md w-full shadow-2xl">
             <h3 class="text-xl font-bold mb-4 flex items-center space-x-2">
@@ -223,6 +233,38 @@
                 <button onclick="closeCustomModal()" class="flex-1 bg-slate-800 hover:bg-slate-700 text-slate-300 py-3.5 rounded-xl font-semibold transition">取消</button>
                 <button onclick="applyCustomTime()" class="flex-1 bg-blue-600 hover:bg-blue-500 text-white py-3.5 rounded-xl font-semibold shadow-lg transition">確認設定</button>
             </div>
+        </div>
+    </div>
+
+    <!-- 手機安裝 App 教學視窗 -->
+    <div id="installModal" class="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+        <div class="bg-panel border border-slate-800 rounded-3xl p-6 md:p-8 max-w-md w-full shadow-2xl text-slate-200">
+            <h3 class="text-xl font-bold mb-3 flex items-center space-x-2 text-white">
+                <i class="fa-solid fa-mobile-screen-button text-blue-500"></i>
+                <span>如何隱藏網址列（加入主畫面）</span>
+            </h3>
+            <p class="text-xs text-slate-400 mb-4 leading-relaxed">
+                若要達到像原生 App 一樣、完全沒有網址列的滿版全螢幕，請依照以下步驟將本頁面釘選至桌面：
+            </p>
+            <div class="space-y-3 mb-6 text-sm bg-slate-900/80 p-4 rounded-2xl border border-slate-800">
+                <div class="flex items-start space-x-3">
+                    <span class="bg-blue-600 text-white font-bold rounded-full w-5 h-5 flex items-center justify-center text-xs shrink-0 mt-0.5">1</span>
+                    <p class="text-xs sm:text-sm">確保你目前是用 iPhone / iPad 的 <strong class="text-white">Safari</strong> 瀏覽器開啟本網頁。</p>
+                </div>
+                <div class="flex items-start space-x-3">
+                    <span class="bg-blue-600 text-white font-bold rounded-full w-5 h-5 flex items-center justify-center text-xs shrink-0 mt-0.5">2</span>
+                    <p class="text-xs sm:text-sm">點擊 Safari 下方工具列的 <strong class="text-blue-400">「分享」按鈕</strong>（正方形有往上箭頭的圖示 <i class="fa-solid fa-arrow-up-from-bracket"></i>）。</p>
+                </div>
+                <div class="flex items-start space-x-3">
+                    <span class="bg-blue-600 text-white font-bold rounded-full w-5 h-5 flex items-center justify-center text-xs shrink-0 mt-0.5">3</span>
+                    <p class="text-xs sm:text-sm">在選單中向下捲動，點擊 <strong class="text-white">「加入主畫面」</strong>。</p>
+                </div>
+                <div class="flex items-start space-x-3">
+                    <span class="bg-blue-600 text-white font-bold rounded-full w-5 h-5 flex items-center justify-center text-xs shrink-0 mt-0.5">4</span>
+                    <p class="text-xs sm:text-sm">完成後，直接從桌面點開該圖示，即可享有完全無網址列的獨立大畫面！</p>
+                </div>
+            </div>
+            <button onclick="closeInstallGuide()" class="w-full bg-blue-600 hover:bg-blue-500 text-white py-3 rounded-xl font-semibold shadow-lg transition">我知道了</button>
         </div>
     </div>
 
@@ -252,6 +294,7 @@
         const appHeader = document.getElementById('appHeader');
         const appFooter = document.getElementById('appFooter');
         const customModal = document.getElementById('customModal');
+        const installModal = document.getElementById('installModal');
         const soundIcon = document.getElementById('soundIcon');
         const soundText = document.getElementById('soundText');
         const fullscreenControls = document.getElementById('fullscreenControls');
@@ -437,6 +480,14 @@
             customModal.classList.add('hidden');
         }
 
+        function openInstallGuide() {
+            installModal.classList.remove('hidden');
+        }
+
+        function closeInstallGuide() {
+            installModal.classList.add('hidden');
+        }
+
         function applyCustomTime() {
             const mins = parseInt(document.getElementById('customMinutes').value) || 0;
             const secs = parseInt(document.getElementById('customSeconds').value) || 0;
@@ -465,7 +516,6 @@
             }
         }
 
-        // 採用強固的 CSS 沉浸式全螢幕，完美適配所有手機瀏覽器 (iOS Safari / Android)
         function toggleFullScreen() {
             isFullscreenMode = !isFullscreenMode;
             
@@ -478,7 +528,6 @@
                 fullscreenControls.classList.add('flex');
                 timerCard.classList.remove('bg-panel/60', 'border', 'border-slate-800/80', 'shadow-2xl');
 
-                // 嘗試鎖定螢幕為橫向 (若裝置支援)
                 if (screen.orientation && screen.orientation.lock) {
                     screen.orientation.lock('landscape').catch(() => {});
                 }
@@ -491,7 +540,6 @@
                 fullscreenControls.classList.remove('flex');
                 timerCard.classList.add('bg-panel/60', 'border', 'border-slate-800/80', 'shadow-2xl');
 
-                // 解除螢幕鎖定
                 if (screen.orientation && screen.orientation.unlock) {
                     try { screen.orientation.unlock(); } catch (e) {}
                 }
