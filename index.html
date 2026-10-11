@@ -4,7 +4,6 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>專業賽事倒數計時器</title>
-    
     <!-- 🚫 強制瀏覽器不快取 HTML 頁面 -->
     <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
     <meta http-equiv="Pragma" content="no-cache">
@@ -42,19 +41,13 @@
             user-select: none;
             -webkit-user-select: none;
             background-color: #050505;
-            padding-top: env(safe-area-inset-top);
-            padding-bottom: env(safe-area-inset-bottom);
-            padding-left: env(safe-area-inset-left);
-            padding-right: env(safe-area-inset-right);
         }
 
-        /* Responsive max size scaling for numbers */
         .timer-number {
             font-size: clamp(5rem, 22vw, 22vh);
             line-height: 0.9;
         }
 
-        /* Fullscreen giant numbers scaling */
         .is-fullscreen .timer-number {
             font-size: clamp(8rem, 30vw, 40vh) !important;
             line-height: 0.85;
@@ -64,7 +57,6 @@
             font-size: clamp(6rem, 22vw, 32vh) !important;
         }
 
-        /* Responsive pulse for low time */
         @keyframes urgent-pulse {
             0%, 100% { opacity: 1; transform: scale(1); }
             50% { opacity: 0.8; transform: scale(0.98); }
@@ -73,7 +65,6 @@
             animation: urgent-pulse 1s infinite ease-in-out;
         }
 
-        /* Screen flash effect on timeout */
         @keyframes screen-flash {
             0%, 100% { background-color: #050505; }
             50% { background-color: #7f1d1d; }
@@ -82,31 +73,8 @@
             animation: screen-flash 0.6s infinite ease-in-out;
         }
 
-        /* Mobile Landscape Small Height Adaptation (避免手機橫屏時高度過小溢出) */
-        @media (max-height: 550px) and (orientation: landscape) {
-            body {
-                padding: 0.5rem !important;
-            }
-            header {
-                padding-bottom: 0.25rem !important;
-            }
-            .timer-number {
-                font-size: clamp(4rem, 18vh, 18vw) !important;
-            }
-            #timerCard {
-                padding-top: 0.5rem !important;
-                padding-bottom: 0.5rem !important;
-            }
-            #displayContainer {
-                margin-top: 0.25rem !important;
-                margin-bottom: 0.25rem !important;
-            }
-        }
-
-        /* Custom scrollbar styling */
         ::-webkit-scrollbar {
             width: 6px;
-            height: 6px;
         }
         ::-webkit-scrollbar-track {
             background: #050505;
@@ -117,7 +85,7 @@
         }
     </style>
 </head>
-<body class="bg-darkbg text-white min-h-[100dvh] w-screen overflow-x-hidden overflow-y-auto flex flex-col justify-between p-3 sm:p-5 md:p-8 transition-colors duration-300 box-border" id="mainBody">
+<body class="bg-darkbg text-white min-h-[100dvh] w-screen overflow-y-auto flex flex-col justify-between p-3 sm:p-5 md:p-8 transition-colors duration-300" id="mainBody">
 
     <header id="appHeader" class="flex items-center justify-between z-10 w-full max-w-6xl mx-auto transition-all duration-300 pb-2">
         <div class="flex items-center space-x-3">
@@ -131,12 +99,10 @@
         </div>
 
         <div class="flex items-center space-x-2 sm:space-x-3">
-            <!-- Sound Toggle Button -->
             <button id="soundToggleBtn" onclick="toggleSound()" class="bg-slate-800/80 hover:bg-slate-700 text-slate-300 hover:text-white px-3 sm:px-4 py-2 sm:py-2.5 rounded-xl border border-slate-700/60 transition flex items-center space-x-2 text-xs sm:text-sm font-medium shadow-lg">
                 <i id="soundIcon" class="fa-solid fa-volume-high text-emerald-400"></i>
                 <span id="soundText" class="hidden sm:inline">音效開</span>
             </button>
-            <!-- Fullscreen Button -->
             <button onclick="toggleFullScreen()" class="bg-slate-800/80 hover:bg-slate-700 text-slate-300 hover:text-white px-3 sm:px-4 py-2 sm:py-2.5 rounded-xl border border-slate-700/60 transition flex items-center space-x-2 text-xs sm:text-sm font-medium shadow-lg">
                 <i class="fa-solid fa-expand text-blue-400"></i>
                 <span class="hidden sm:inline">全螢幕</span>
@@ -146,29 +112,25 @@
 
     <main class="flex-1 flex flex-col items-center justify-center my-auto py-2 sm:py-4 relative z-10 w-full max-w-6xl mx-auto">
         
-        <!-- Timer Display Card -->
         <div id="timerCard" class="w-full flex flex-col items-center justify-center py-6 sm:py-8 md:py-10 px-4 rounded-3xl bg-panel/60 backdrop-blur-xl border border-slate-800/80 shadow-2xl transition-all duration-300 cursor-pointer select-none">
             
-            <!-- Status Badge -->
             <div id="statusBadge" class="mb-2 sm:mb-4 px-4 py-1.5 rounded-full text-xs sm:text-sm font-bold tracking-widest uppercase bg-slate-800/90 text-slate-400 border border-slate-700/50 flex items-center space-x-2">
                 <span class="w-2.5 h-2.5 rounded-full bg-slate-500 animate-pulse" id="statusDot"></span>
                 <span id="statusText">準備就緒</span>
             </div>
 
-            <!-- Clear, High-Contrast Digital Numbers -->
             <div id="displayContainer" class="flex items-center justify-center text-slate-100 font-mono-time my-2 sm:my-4">
                 <div class="flex flex-col items-center">
                     <span id="minutesDisplay" class="timer-number font-extrabold tracking-tight drop-shadow-[0_10px_30px_rgba(0,0,0,0.9)]">25</span>
                     <span id="minLabel" class="text-[10px] sm:text-xs text-slate-400 tracking-widest font-sans font-medium uppercase mt-2">分 MINUTES</span>
                 </div>
-                <span id="colonSeparator" class="colon-separator text-[12vw] sm:text-[14vw] md:text-[140px] font-bold text-slate-500 pb-4 sm:pb-8 mx-1 sm:mx-3 animate-pulse">:</span>
+                <span id="colonSeparator" class="colon-separator text-[10vw] sm:text-[14vw] md:text-[140px] font-bold text-slate-500 pb-4 sm:pb-8 mx-1 sm:mx-3 animate-pulse">:</span>
                 <div class="flex flex-col items-center">
                     <span id="secondsDisplay" class="timer-number font-extrabold tracking-tight drop-shadow-[0_10px_30px_rgba(0,0,0,0.9)]">00</span>
                     <span id="secLabel" class="text-[10px] sm:text-xs text-slate-400 tracking-widest font-sans font-medium uppercase mt-2">秒 SECONDS</span>
                 </div>
             </div>
 
-            <!-- Fullscreen Mode Floating Mini Controls / Hints -->
             <div id="fullscreenControls" class="hidden flex-col items-center space-y-3 mt-4">
                 <div class="flex items-center space-x-4">
                     <button onclick="event.stopPropagation(); toggleStartPause();" id="fsPlayBtn" class="bg-blue-600 hover:bg-blue-500 text-white px-6 py-2.5 rounded-xl font-bold text-base border border-blue-400/40 shadow-lg flex items-center space-x-2">
@@ -187,7 +149,6 @@
                 <span class="text-xs text-slate-500">（點擊螢幕任何空白區域皆可「開始 / 暫停」）</span>
             </div>
 
-            <!-- Progress Bar Indicator -->
             <div id="progressBarContainer" class="w-full max-w-2xl bg-slate-800/60 h-2.5 rounded-full overflow-hidden mt-3 sm:mt-6 border border-slate-700/40">
                 <div id="progressBar" class="bg-blue-500 h-full w-full transition-all duration-300 rounded-full shadow-[0_0_12px_rgba(59,130,246,0.6)]"></div>
             </div>
@@ -196,7 +157,6 @@
 
     <footer id="appFooter" class="flex flex-col items-center space-y-3 sm:space-y-4 z-10 transition-all duration-300 max-w-6xl mx-auto w-full pt-2">
         
-        <!-- Preset Time Buttons Grid -->
         <div id="presetsContainer" class="grid grid-cols-4 md:grid-cols-8 gap-2 w-full">
             <button onclick="setPreset(1)" class="preset-btn bg-slate-900/80 hover:bg-slate-800 text-slate-300 hover:text-white py-2.5 sm:py-3 px-1.5 rounded-xl border border-slate-800 font-semibold text-xs sm:text-sm md:text-base transition active:scale-95 shadow-md">1 分鐘</button>
             <button onclick="setPreset(3)" class="preset-btn bg-slate-900/80 hover:bg-slate-800 text-slate-300 hover:text-white py-2.5 sm:py-3 px-1.5 rounded-xl border border-slate-800 font-semibold text-xs sm:text-sm md:text-base transition active:scale-95 shadow-md">3 分鐘</button>
@@ -214,7 +174,6 @@
             </button>
         </div>
 
-        <!-- Main Action Buttons -->
         <div id="mainControls" class="flex items-center justify-center space-x-3 sm:space-x-4 w-full">
             <button id="resetBtn" onclick="resetTimer()" class="flex-1 max-w-[180px] sm:max-w-[200px] bg-slate-800 hover:bg-slate-700 text-slate-200 py-3 sm:py-4 px-4 sm:px-6 rounded-2xl font-bold text-sm sm:text-base md:text-lg border border-slate-700 transition active:scale-95 shadow-xl flex items-center justify-center space-x-2">
                 <i class="fa-solid fa-rotate-right"></i>
@@ -228,7 +187,6 @@
         </div>
     </footer>
 
-    <!-- Custom Modal -->
     <div id="customModal" class="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
         <div class="bg-panel border border-slate-800 rounded-3xl p-6 md:p-8 max-w-md w-full shadow-2xl">
             <h3 class="text-xl font-bold mb-4 flex items-center space-x-2">
@@ -253,7 +211,6 @@
     </div>
 
     <script>
-        // State variables (Default 25 minutes for Pokemon TCG)
         let totalSeconds = 1500;
         let remainingSeconds = 1500;
         let timerInterval = null;
@@ -261,7 +218,6 @@
         let soundEnabled = true;
         let audioCtx = null;
 
-        // DOM Elements
         const minutesDisplay = document.getElementById('minutesDisplay');
         const secondsDisplay = document.getElementById('secondsDisplay');
         const startPauseBtn = document.getElementById('startPauseBtn');
@@ -283,7 +239,6 @@
         const soundText = document.getElementById('soundText');
         const fullscreenControls = document.getElementById('fullscreenControls');
 
-        // Initialize Audio Context for offline web audio
         function initAudio() {
             if (!audioCtx) {
                 audioCtx = new (window.AudioContext || window.webkitAudioContext)();
@@ -293,7 +248,6 @@
             }
         }
 
-        // Web Audio synthesized sound output
         function playBeep(freq = 440, duration = 0.15, type = 'sine') {
             if (!soundEnabled) return;
             try {
@@ -335,7 +289,6 @@
             }
         }
 
-        // Display updater
         function updateDisplay() {
             const mins = Math.floor(remainingSeconds / 60);
             const secs = remainingSeconds % 60;
@@ -495,21 +448,37 @@
             }
         }
 
+        // 支援標準與跨瀏覽器前綴的全螢幕切換，並嘗試強制鎖定橫屏
         function toggleFullScreen() {
-            if (!document.fullscreenElement) {
-                document.documentElement.requestFullscreen().catch((err) => {
-                    console.log('Fullscreen failed:', err.message);
-                });
+            const elem = document.documentElement;
+            const isFs = document.fullscreenElement || document.webkitFullscreenElement || document.msFullscreenElement;
+
+            if (!isFs) {
+                const requestFn = elem.requestFullscreen || elem.webkitRequestFullscreen || elem.msRequestFullscreen;
+                if (requestFn) {
+                    requestFn.call(elem).then(() => {
+                        // 嘗試自動鎖定為橫屏
+                        if (screen.orientation && screen.orientation.lock) {
+                            screen.orientation.lock('landscape').catch(err => {
+                                console.log('Orientation lock not supported or blocked:', err);
+                            });
+                        }
+                    }).catch((err) => {
+                        console.log('Fullscreen failed:', err.message);
+                    });
+                }
             } else {
-                if (document.exitFullscreen) {
-                    document.exitFullscreen();
+                const exitFn = document.exitFullscreen || document.webkitExitFullscreen || document.msExitFullscreen;
+                if (exitFn) {
+                    exitFn.call(document);
                 }
             }
         }
 
-        // Handle Fullscreen UI Modes
-        document.addEventListener('fullscreenchange', () => {
-            if (document.fullscreenElement) {
+        // 監聽全螢幕狀態變化 (包含 Safari webkit 支援)
+        function handleFullscreenChange() {
+            const isFs = document.fullscreenElement || document.webkitFullscreenElement || document.msFullscreenElement;
+            if (isFs) {
                 mainBody.classList.add('is-fullscreen');
                 appHeader.classList.add('hidden');
                 appFooter.classList.add('hidden');
@@ -526,9 +495,11 @@
                 timerCard.classList.add('bg-panel/60', 'border', 'border-slate-800/80', 'shadow-2xl');
                 timerCard.classList.remove('bg-transparent');
             }
-        });
+        }
 
-        // Click anywhere on timer card to toggle start/pause
+        document.addEventListener('fullscreenchange', handleFullscreenChange);
+        document.addEventListener('webkitfullscreenchange', handleFullscreenChange);
+
         timerCard.addEventListener('click', () => {
             toggleStartPause();
         });
