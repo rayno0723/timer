@@ -1,131 +1,289 @@
 <!DOCTYPE html>
-<html lang="zh-TW">
+<html lang="zh-TW" class="dark">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>賽事專業倒數計時器</title>
-
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>專業賽事倒數計時器</title>
+    
     <!-- 🚫 強制瀏覽器不快取 HTML 頁面 -->
     <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
     <meta http-equiv="Pragma" content="no-cache">
     <meta http-equiv="Expires" content="0">
 
-    <!-- Tailwind CSS CDN -->
-    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
-    <!-- 引入高辨識度等寬字體 JetBrains Mono -->
-    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@700;800&display=swap" rel="stylesheet">
-
-    <style>
-        body {
-            font-family: system-ui, -apple-system, sans-serif;
-            background-color: #0b0f19;
-            color: #f3f4f6;
-            touch-action: manipulation;
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        darkbg: '#050505',
+                        panel: '#121214',
+                        accent: '#3b82f6',
+                        danger: '#ef4444',
+                        success: '#22c55e',
+                        warning: '#f59e0b'
+                    }
+                }
+            }
         }
-        .timer-font {
-            font-family: 'JetBrains Mono', monospace;
+    </script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Using JetBrains Mono for super clean, high-legibility numbers -->
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@700;800&family=Noto+Sans+TC:wght@400;500;700&display=swap" rel="stylesheet">
+    <style>
+        .font-mono-time {
+            font-family: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
             font-variant-numeric: tabular-nums;
+            letter-spacing: -0.03em;
+        }
+        body {
+            font-family: 'Noto Sans TC', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            user-select: none;
+            -webkit-user-select: none;
+            background-color: #050505;
+            padding-top: env(safe-area-inset-top);
+            padding-bottom: env(safe-area-inset-bottom);
+            padding-left: env(safe-area-inset-left);
+            padding-right: env(safe-area-inset-right);
+        }
+
+        /* Responsive max size scaling for numbers */
+        .timer-number {
+            font-size: clamp(5rem, 22vw, 22vh);
+            line-height: 0.9;
+        }
+
+        /* Fullscreen giant numbers scaling */
+        .is-fullscreen .timer-number {
+            font-size: clamp(8rem, 30vw, 40vh) !important;
+            line-height: 0.85;
+        }
+
+        .is-fullscreen .colon-separator {
+            font-size: clamp(6rem, 22vw, 32vh) !important;
+        }
+
+        /* Responsive pulse for low time */
+        @keyframes urgent-pulse {
+            0%, 100% { opacity: 1; transform: scale(1); }
+            50% { opacity: 0.8; transform: scale(0.98); }
+        }
+        .animate-urgent {
+            animation: urgent-pulse 1s infinite ease-in-out;
+        }
+
+        /* Screen flash effect on timeout */
+        @keyframes screen-flash {
+            0%, 100% { background-color: #050505; }
+            50% { background-color: #7f1d1d; }
+        }
+        .flash-alert {
+            animation: screen-flash 0.6s infinite ease-in-out;
+        }
+
+        /* Mobile Landscape Small Height Adaptation (避免手機橫屏時高度過小溢出) */
+        @media (max-height: 550px) and (orientation: landscape) {
+            body {
+                padding: 0.5rem !important;
+            }
+            header {
+                padding-bottom: 0.25rem !important;
+            }
+            .timer-number {
+                font-size: clamp(4rem, 18vh, 18vw) !important;
+            }
+            #timerCard {
+                padding-top: 0.5rem !important;
+                padding-bottom: 0.5rem !important;
+            }
+            #displayContainer {
+                margin-top: 0.25rem !important;
+                margin-bottom: 0.25rem !important;
+            }
+        }
+
+        /* Custom scrollbar styling */
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #050505;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #1e293b;
+            border-radius: 3px;
         }
     </style>
 </head>
-<body class="min-h-[100dvh] flex flex-col justify-between overflow-y-auto select-none">
+<body class="bg-darkbg text-white min-h-[100dvh] w-screen overflow-x-hidden overflow-y-auto flex flex-col justify-between p-3 sm:p-5 md:p-8 transition-colors duration-300 box-border" id="mainBody">
 
-    <!-- 頂部導航列 (非全螢幕時顯示) -->
-    <header id="app-header" class="w-full max-w-4xl mx-auto px-4 py-3 flex items-center justify-between border-b border-gray-800 transition-all duration-300">
-        <div class="flex items-center space-x-2">
-            <span class="inline-block w-3 h-3 bg-red-500 rounded-full animate-pulse"></span>
-            <h1 class="text-base sm:text-lg font-bold tracking-wide text-gray-200">賽事倒數計時器</h1>
+    <header id="appHeader" class="flex items-center justify-between z-10 w-full max-w-6xl mx-auto transition-all duration-300 pb-2">
+        <div class="flex items-center space-x-3">
+            <div class="bg-blue-600/20 border border-blue-500/30 p-2 sm:p-2.5 rounded-2xl text-blue-400">
+                <i class="fa-solid fa-stopwatch text-lg sm:text-2xl"></i>
+            </div>
+            <div>
+                <h1 class="text-base sm:text-lg md:text-xl font-bold tracking-wider text-slate-100">賽事專業計時器</h1>
+                <p class="text-[10px] sm:text-xs text-slate-400">Pro Sports Countdown • 本地離線專用</p>
+            </div>
         </div>
-        <button id="fullscreen-btn" class="px-3 py-1.5 bg-gray-800 hover:bg-gray-700 active:scale-95 text-xs sm:text-sm font-medium rounded-lg text-gray-300 flex items-center gap-1.5 transition">
-            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4"/></svg>
-            <span>全螢幕</span>
-        </button>
+
+        <div class="flex items-center space-x-2 sm:space-x-3">
+            <!-- Sound Toggle Button -->
+            <button id="soundToggleBtn" onclick="toggleSound()" class="bg-slate-800/80 hover:bg-slate-700 text-slate-300 hover:text-white px-3 sm:px-4 py-2 sm:py-2.5 rounded-xl border border-slate-700/60 transition flex items-center space-x-2 text-xs sm:text-sm font-medium shadow-lg">
+                <i id="soundIcon" class="fa-solid fa-volume-high text-emerald-400"></i>
+                <span id="soundText" class="hidden sm:inline">音效開</span>
+            </button>
+            <!-- Fullscreen Button -->
+            <button onclick="toggleFullScreen()" class="bg-slate-800/80 hover:bg-slate-700 text-slate-300 hover:text-white px-3 sm:px-4 py-2 sm:py-2.5 rounded-xl border border-slate-700/60 transition flex items-center space-x-2 text-xs sm:text-sm font-medium shadow-lg">
+                <i class="fa-solid fa-expand text-blue-400"></i>
+                <span class="hidden sm:inline">全螢幕</span>
+            </button>
+        </div>
     </header>
 
-    <!-- 主要計時器顯示區 -->
-    <main id="timer-container" class="flex-1 w-full max-w-4xl mx-auto px-4 flex flex-col items-center justify-center cursor-pointer py-4">
-        <!-- 倒數看板 -->
-        <div class="w-full bg-gray-900/80 border border-gray-800/80 rounded-3xl p-6 sm:p-10 flex flex-col items-center justify-center shadow-2xl relative overflow-hidden transition-all duration-300">
+    <main class="flex-1 flex flex-col items-center justify-center my-auto py-2 sm:py-4 relative z-10 w-full max-w-6xl mx-auto">
+        
+        <!-- Timer Display Card -->
+        <div id="timerCard" class="w-full flex flex-col items-center justify-center py-6 sm:py-8 md:py-10 px-4 rounded-3xl bg-panel/60 backdrop-blur-xl border border-slate-800/80 shadow-2xl transition-all duration-300 cursor-pointer select-none">
             
-            <!-- 狀態提示標籤 -->
-            <div id="status-badge" class="mb-2 px-3 py-1 rounded-full text-xs sm:text-sm font-semibold tracking-wider uppercase bg-gray-800 text-gray-400 transition-all">
-                準備就緒
+            <!-- Status Badge -->
+            <div id="statusBadge" class="mb-2 sm:mb-4 px-4 py-1.5 rounded-full text-xs sm:text-sm font-bold tracking-widest uppercase bg-slate-800/90 text-slate-400 border border-slate-700/50 flex items-center space-x-2">
+                <span class="w-2.5 h-2.5 rounded-full bg-slate-500 animate-pulse" id="statusDot"></span>
+                <span id="statusText">準備就緒</span>
             </div>
 
-            <!-- 時間主數字 (點擊看板可切換 開始/暫停) -->
-            <div id="time-display" class="timer-font text-[22vw] sm:text-[18vw] md:text-[140px] font-extrabold tracking-tighter text-white leading-none my-2 drop-shadow-lg">
-                25:00
+            <!-- Clear, High-Contrast Digital Numbers -->
+            <div id="displayContainer" class="flex items-center justify-center text-slate-100 font-mono-time my-2 sm:my-4">
+                <div class="flex flex-col items-center">
+                    <span id="minutesDisplay" class="timer-number font-extrabold tracking-tight drop-shadow-[0_10px_30px_rgba(0,0,0,0.9)]">25</span>
+                    <span id="minLabel" class="text-[10px] sm:text-xs text-slate-400 tracking-widest font-sans font-medium uppercase mt-2">分 MINUTES</span>
+                </div>
+                <span id="colonSeparator" class="colon-separator text-[12vw] sm:text-[14vw] md:text-[140px] font-bold text-slate-500 pb-4 sm:pb-8 mx-1 sm:mx-3 animate-pulse">:</span>
+                <div class="flex flex-col items-center">
+                    <span id="secondsDisplay" class="timer-number font-extrabold tracking-tight drop-shadow-[0_10px_30px_rgba(0,0,0,0.9)]">00</span>
+                    <span id="secLabel" class="text-[10px] sm:text-xs text-slate-400 tracking-widest font-sans font-medium uppercase mt-2">秒 SECONDS</span>
+                </div>
             </div>
 
-            <!-- 進度條 -->
-            <div class="w-full bg-gray-800/60 h-2 rounded-full overflow-hidden mt-4">
-                <div id="progress-bar" class="bg-blue-600 h-full w-full transition-all duration-300"></div>
+            <!-- Fullscreen Mode Floating Mini Controls / Hints -->
+            <div id="fullscreenControls" class="hidden flex-col items-center space-y-3 mt-4">
+                <div class="flex items-center space-x-4">
+                    <button onclick="event.stopPropagation(); toggleStartPause();" id="fsPlayBtn" class="bg-blue-600 hover:bg-blue-500 text-white px-6 py-2.5 rounded-xl font-bold text-base border border-blue-400/40 shadow-lg flex items-center space-x-2">
+                        <i id="fsPlayIcon" class="fa-solid fa-play"></i>
+                        <span id="fsPlayText">開始</span>
+                    </button>
+                    <button onclick="event.stopPropagation(); resetTimer();" class="bg-slate-800 hover:bg-slate-700 text-slate-200 px-5 py-2.5 rounded-xl font-bold text-base border border-slate-700 shadow-lg flex items-center space-x-2">
+                        <i class="fa-solid fa-rotate-right"></i>
+                        <span>重設</span>
+                    </button>
+                    <button onclick="event.stopPropagation(); toggleFullScreen();" class="bg-slate-800/80 hover:bg-slate-700 text-slate-400 hover:text-white px-4 py-2.5 rounded-xl font-medium text-sm border border-slate-700/60 shadow-lg flex items-center space-x-1.5">
+                        <i class="fa-solid fa-compress"></i>
+                        <span>退出全螢幕</span>
+                    </button>
+                </div>
+                <span class="text-xs text-slate-500">（點擊螢幕任何空白區域皆可「開始 / 暫停」）</span>
             </div>
 
-            <!-- 全螢幕下顯示的極簡浮動控制提示 -->
-            <div id="fs-hint" class="absolute bottom-3 text-xs text-gray-500 opacity-0 pointer-events-none transition-opacity">
-                輕觸畫面任意處 開始 / 暫停
+            <!-- Progress Bar Indicator -->
+            <div id="progressBarContainer" class="w-full max-w-2xl bg-slate-800/60 h-2.5 rounded-full overflow-hidden mt-3 sm:mt-6 border border-slate-700/40">
+                <div id="progressBar" class="bg-blue-500 h-full w-full transition-all duration-300 rounded-full shadow-[0_0_12px_rgba(59,130,246,0.6)]"></div>
             </div>
         </div>
     </main>
 
-    <!-- 下方控制與預設時間區 (非全螢幕時顯示) -->
-    <footer id="app-footer" class="w-full max-w-4xl mx-auto px-4 pb-6 transition-all duration-300">
+    <footer id="appFooter" class="flex flex-col items-center space-y-3 sm:space-y-4 z-10 transition-all duration-300 max-w-6xl mx-auto w-full pt-2">
         
-        <!-- 快捷預設時間按鈕 -->
-        <div class="mb-4">
-            <p class="text-xs text-gray-400 mb-2 font-medium">快速設定預設時間：</p>
-            <div class="grid grid-cols-4 sm:grid-cols-7 gap-2">
-                <button onclick="setTimer(1)" class="preset-btn py-2.5 bg-gray-800/80 hover:bg-gray-700 active:scale-95 text-xs sm:text-sm font-bold rounded-xl transition">1 分</button>
-                <button onclick="setTimer(3)" class="preset-btn py-2.5 bg-gray-800/80 hover:bg-gray-700 active:scale-95 text-xs sm:text-sm font-bold rounded-xl transition">3 分</button>
-                <button onclick="setTimer(5)" class="preset-btn py-2.5 bg-gray-800/80 hover:bg-gray-700 active:scale-95 text-xs sm:text-sm font-bold rounded-xl transition">5 分</button>
-                <button onclick="setTimer(10)" class="preset-btn py-2.5 bg-gray-800/80 hover:bg-gray-700 active:scale-95 text-xs sm:text-sm font-bold rounded-xl transition">10 分</button>
-                <button onclick="setTimer(15)" class="preset-btn py-2.5 bg-gray-800/80 hover:bg-gray-700 active:scale-95 text-xs sm:text-sm font-bold rounded-xl transition">15 分</button>
-                <button onclick="setTimer(25)" class="preset-btn py-2.5 bg-gray-800/80 hover:bg-gray-700 active:scale-95 text-xs sm:text-sm font-bold rounded-xl transition border border-blue-500/40 text-blue-400">25分賽</button>
-                <button onclick="setTimer(30)" class="preset-btn col-span-2 sm:col-span-1 py-2.5 bg-gray-800/80 hover:bg-gray-700 active:scale-95 text-xs sm:text-sm font-bold rounded-xl transition">30 分</button>
-            </div>
+        <!-- Preset Time Buttons Grid -->
+        <div id="presetsContainer" class="grid grid-cols-4 md:grid-cols-8 gap-2 w-full">
+            <button onclick="setPreset(1)" class="preset-btn bg-slate-900/80 hover:bg-slate-800 text-slate-300 hover:text-white py-2.5 sm:py-3 px-1.5 rounded-xl border border-slate-800 font-semibold text-xs sm:text-sm md:text-base transition active:scale-95 shadow-md">1 分鐘</button>
+            <button onclick="setPreset(3)" class="preset-btn bg-slate-900/80 hover:bg-slate-800 text-slate-300 hover:text-white py-2.5 sm:py-3 px-1.5 rounded-xl border border-slate-800 font-semibold text-xs sm:text-sm md:text-base transition active:scale-95 shadow-md">3 分鐘</button>
+            <button onclick="setPreset(5)" class="preset-btn bg-slate-900/80 hover:bg-slate-800 text-slate-300 hover:text-white py-2.5 sm:py-3 px-1.5 rounded-xl border border-slate-800 font-semibold text-xs sm:text-sm md:text-base transition active:scale-95 shadow-md">5 分鐘</button>
+            <button onclick="setPreset(10)" class="preset-btn bg-slate-900/80 hover:bg-slate-800 text-slate-300 hover:text-white py-2.5 sm:py-3 px-1.5 rounded-xl border border-slate-800 font-semibold text-xs sm:text-sm md:text-base transition active:scale-95 shadow-md">10 分鐘</button>
+            <button onclick="setPreset(15)" class="preset-btn bg-slate-900/80 hover:bg-slate-800 text-slate-300 hover:text-white py-2.5 sm:py-3 px-1.5 rounded-xl border border-slate-800 font-semibold text-xs sm:text-sm md:text-base transition active:scale-95 shadow-md">15 分鐘</button>
+            <button onclick="setPreset(25)" class="preset-btn bg-slate-900/80 hover:bg-slate-800 text-slate-300 hover:text-white py-2.5 sm:py-3 px-1.5 rounded-xl border border-slate-800 font-semibold text-xs sm:text-sm md:text-base transition active:scale-95 shadow-md flex flex-col items-center justify-center">
+                <span>25 分鐘</span>
+                <span class="text-[9px] font-normal tracking-tighter opacity-80">寶可夢賽</span>
+            </button>
+            <button onclick="setPreset(30)" class="preset-btn bg-slate-900/80 hover:bg-slate-800 text-slate-300 hover:text-white py-2.5 sm:py-3 px-1.5 rounded-xl border border-slate-800 font-semibold text-xs sm:text-sm md:text-base transition active:scale-95 shadow-md">30 分鐘</button>
+            <button onclick="openCustomModal()" class="col-span-4 md:col-span-1 bg-slate-800/80 hover:bg-slate-700 text-blue-400 hover:text-blue-300 py-2.5 sm:py-3 px-1.5 rounded-xl border border-blue-900/40 font-semibold text-xs sm:text-sm md:text-base transition active:scale-95 shadow-md flex items-center justify-center space-x-1.5">
+                <i class="fa-solid fa-pen-to-square"></i>
+                <span>自訂</span>
+            </button>
         </div>
 
-        <!-- 自訂時間與控制按鈕 -->
-        <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
-            <div class="col-span-2 flex items-center bg-gray-900 border border-gray-800 rounded-xl px-3 py-2">
-                <span class="text-xs text-gray-400 mr-2 whitespace-nowrap">自訂(分):</span>
-                <input type="number" id="custom-minutes" min="1" max="180" value="25" class="w-full bg-transparent text-white font-bold text-base focus:outline-none timer-font">
-                <button onclick="applyCustomTime()" class="ml-2 px-3 py-1.5 bg-gray-800 hover:bg-gray-700 active:scale-95 text-xs font-semibold rounded-lg text-gray-300 transition">設定</button>
-            </div>
-            
-            <button id="start-pause-btn" onclick="toggleTimer()" class="py-3 bg-blue-600 hover:bg-blue-500 active:scale-95 text-sm sm:text-base font-bold rounded-xl shadow-lg shadow-blue-900/30 text-white transition flex items-center justify-center gap-1.5">
-                <svg id="play-icon" class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z" clip-rule="evenodd"/></svg>
-                <span id="start-pause-text">開始計時</span>
-            </button>
-
-            <button onclick="resetTimer()" class="py-3 bg-gray-800 hover:bg-gray-700 active:scale-95 text-sm sm:text-base font-bold rounded-xl text-gray-300 transition flex items-center justify-center gap-1.5">
-                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+        <!-- Main Action Buttons -->
+        <div id="mainControls" class="flex items-center justify-center space-x-3 sm:space-x-4 w-full">
+            <button id="resetBtn" onclick="resetTimer()" class="flex-1 max-w-[180px] sm:max-w-[200px] bg-slate-800 hover:bg-slate-700 text-slate-200 py-3 sm:py-4 px-4 sm:px-6 rounded-2xl font-bold text-sm sm:text-base md:text-lg border border-slate-700 transition active:scale-95 shadow-xl flex items-center justify-center space-x-2">
+                <i class="fa-solid fa-rotate-right"></i>
                 <span>重設</span>
+            </button>
+            
+            <button id="startPauseBtn" onclick="toggleStartPause()" class="flex-[2] max-w-[360px] sm:max-w-[400px] bg-blue-600 hover:bg-blue-500 text-white py-3 sm:py-4 px-6 sm:px-8 rounded-2xl font-black text-lg sm:text-xl md:text-2xl transition active:scale-95 shadow-[0_0_25px_rgba(37,99,235,0.4)] flex items-center justify-center space-x-3">
+                <i id="startPauseIcon" class="fa-solid fa-play"></i>
+                <span id="startPauseText">開始計時</span>
             </button>
         </div>
     </footer>
 
-    <!-- JavaScript 邏輯 -->
+    <!-- Custom Modal -->
+    <div id="customModal" class="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+        <div class="bg-panel border border-slate-800 rounded-3xl p-6 md:p-8 max-w-md w-full shadow-2xl">
+            <h3 class="text-xl font-bold mb-4 flex items-center space-x-2">
+                <i class="fa-solid fa-clock text-blue-500"></i>
+                <span>設定自訂時間</span>
+            </h3>
+            <div class="grid grid-cols-2 gap-4 mb-6">
+                <div>
+                    <label class="block text-xs font-medium text-slate-400 mb-1.5 uppercase tracking-wider">分鐘 Minutes</label>
+                    <input type="number" id="customMinutes" min="0" max="180" value="25" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-3.5 text-xl font-mono-time text-white focus:outline-none focus:border-blue-500">
+                </div>
+                <div>
+                    <label class="block text-xs font-medium text-slate-400 mb-1.5 uppercase tracking-wider">秒數 Seconds</label>
+                    <input type="number" id="customSeconds" min="0" max="59" value="0" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-3.5 text-xl font-mono-time text-white focus:outline-none focus:border-blue-500">
+                </div>
+            </div>
+            <div class="flex space-x-3">
+                <button onclick="closeCustomModal()" class="flex-1 bg-slate-800 hover:bg-slate-700 text-slate-300 py-3.5 rounded-xl font-semibold transition">取消</button>
+                <button onclick="applyCustomTime()" class="flex-1 bg-blue-600 hover:bg-blue-500 text-white py-3.5 rounded-xl font-semibold shadow-lg transition">確認設定</button>
+            </div>
+        </div>
+    </div>
+
     <script>
-        let totalSeconds = 25 * 60;
-        let remainingSeconds = 25 * 60;
-        let timerId = null;
+        // State variables (Default 25 minutes for Pokemon TCG)
+        let totalSeconds = 1500;
+        let remainingSeconds = 1500;
+        let timerInterval = null;
         let isRunning = false;
+        let soundEnabled = true;
         let audioCtx = null;
 
-        const timeDisplay = document.getElementById('time-display');
-        const startPauseText = document.getElementById('start-pause-text');
-        const playIcon = document.getElementById('play-icon');
-        const statusBadge = document.getElementById('status-badge');
-        const progressBar = document.getElementById('progress-bar');
-        const timerContainer = document.getElementById('timer-container');
-        const appHeader = document.getElementById('app-header');
-        const appFooter = document.getElementById('app-footer');
-        const fullscreenBtn = document.getElementById('fullscreen-btn');
-        const fsHint = document.getElementById('fs-hint');
+        // DOM Elements
+        const minutesDisplay = document.getElementById('minutesDisplay');
+        const secondsDisplay = document.getElementById('secondsDisplay');
+        const startPauseBtn = document.getElementById('startPauseBtn');
+        const startPauseIcon = document.getElementById('startPauseIcon');
+        const startPauseText = document.getElementById('startPauseText');
+        const fsPlayBtn = document.getElementById('fsPlayBtn');
+        const fsPlayIcon = document.getElementById('fsPlayIcon');
+        const fsPlayText = document.getElementById('fsPlayText');
+        const statusBadge = document.getElementById('statusBadge');
+        const statusDot = document.getElementById('statusDot');
+        const statusText = document.getElementById('statusText');
+        const progressBar = document.getElementById('progressBar');
+        const timerCard = document.getElementById('timerCard');
+        const mainBody = document.getElementById('mainBody');
+        const appHeader = document.getElementById('appHeader');
+        const appFooter = document.getElementById('appFooter');
+        const customModal = document.getElementById('customModal');
+        const soundIcon = document.getElementById('soundIcon');
+        const soundText = document.getElementById('soundText');
+        const fullscreenControls = document.getElementById('fullscreenControls');
 
-        // 初始化音訊環境 (Web Audio API 支援離線發声)
+        // Initialize Audio Context for offline web audio
         function initAudio() {
             if (!audioCtx) {
                 audioCtx = new (window.AudioContext || window.webkitAudioContext)();
@@ -135,68 +293,89 @@
             }
         }
 
-        // 播放提示音
-        function playBeep(frequency = 800, duration = 0.15, type = 'sine') {
+        // Web Audio synthesized sound output
+        function playBeep(freq = 440, duration = 0.15, type = 'sine') {
+            if (!soundEnabled) return;
             try {
                 initAudio();
-                const oscillator = audioCtx.createOscillator();
-                const gainNode = audioCtx.createGain();
-                
-                oscillator.type = type;
-                oscillator.frequency.value = frequency;
-                
-                gainNode.gain.setValueAtTime(0.2, audioCtx.currentTime);
-                gainNode.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + duration);
-                
-                oscillator.connect(gainNode);
-                gainNode.connect(audioCtx.destination);
-                
-                oscillator.start();
-                oscillator.stop(audioCtx.currentTime + duration);
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                osc.type = type;
+                osc.frequency.value = freq;
+                gain.gain.setValueAtTime(0.3, audioCtx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + duration);
+                osc.connect(gain);
+                gain.connect(audioCtx.destination);
+                osc.start();
+                osc.stop(audioCtx.currentTime + duration);
             } catch (e) {
-                console.log('Audio playback prevented or unsupported');
+                console.log('Audio error:', e);
             }
         }
 
-        // 播放時間到警示三連音
-        function playAlarm() {
-            playBeep(600, 0.2);
-            setTimeout(() => playBeep(600, 0.2), 250);
-            setTimeout(() => playBeep(900, 0.4), 500);
+        function playFinalAlarm() {
+            if (!soundEnabled) return;
+            try {
+                initAudio();
+                let now = audioCtx.currentTime;
+                [0, 0.25, 0.5, 0.75].forEach((offset) => {
+                    const osc = audioCtx.createOscillator();
+                    const gain = audioCtx.createGain();
+                    osc.type = 'square';
+                    osc.frequency.value = 880;
+                    gain.gain.setValueAtTime(0.4, now + offset);
+                    gain.gain.exponentialRampToValueAtTime(0.01, now + offset + 0.2);
+                    osc.connect(gain);
+                    gain.connect(audioCtx.destination);
+                    osc.start(now + offset);
+                    osc.stop(now + offset + 0.2);
+                });
+            } catch (e) {
+                console.log('Alarm error:', e);
+            }
         }
 
-        // 更新畫面顯示
+        // Display updater
         function updateDisplay() {
             const mins = Math.floor(remainingSeconds / 60);
             const secs = remainingSeconds % 60;
-            timeDisplay.textContent = `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
             
-            // 更新進度條
-            const percent = totalSeconds > 0 ? (remainingSeconds / totalSeconds) * 100 : 0;
-            progressBar.style.width = `${percent}%`;
+            minutesDisplay.textContent = String(mins).padStart(2, '0');
+            secondsDisplay.textContent = String(secs).padStart(2, '0');
 
-            // 更新網頁標題
-            document.title = `${timeDisplay.textContent} - 賽事計時器`;
-        }
+            const percentage = totalSeconds > 0 ? (remainingSeconds / totalSeconds) * 100 : 0;
+            progressBar.style.width = `${percentage}%`;
 
-        // 設定時間
-        function setTimer(minutes) {
-            pauseTimer();
-            totalSeconds = minutes * 60;
-            remainingSeconds = totalSeconds;
-            updateDisplay();
-        }
-
-        // 套用自訂時間
-        function applyCustomTime() {
-            const inputVal = parseInt(document.getElementById('custom-minutes').value);
-            if (!isNaN(inputVal) && inputVal > 0) {
-                setTimer(inputVal);
+            if (remainingSeconds <= 10 && remainingSeconds > 0) {
+                timerCard.classList.add('animate-urgent', 'border-red-500/50');
+                progressBar.className = "bg-red-500 h-full transition-all duration-300 rounded-full shadow-[0_0_12px_rgba(239,68,68,0.8)]";
+            } else if (remainingSeconds === 0) {
+                timerCard.classList.remove('animate-urgent');
+                timerCard.classList.add('border-red-600');
+                mainBody.classList.add('flash-alert');
+            } else {
+                timerCard.classList.remove('animate-urgent', 'border-red-500/50', 'border-red-600');
+                mainBody.classList.remove('flash-alert');
+                progressBar.className = "bg-blue-500 h-full transition-all duration-300 rounded-full shadow-[0_0_12px_rgba(59,130,246,0.6)]";
             }
         }
 
-        // 開始 / 暫停切換
-        function toggleTimer() {
+        function timerTick() {
+            if (remainingSeconds > 0) {
+                remainingSeconds--;
+                if (remainingSeconds <= 10 && remainingSeconds > 0) {
+                    playBeep(600, 0.1);
+                }
+                updateDisplay();
+                if (remainingSeconds === 0) {
+                    stopTimer();
+                    playFinalAlarm();
+                    updateStatus('時間到！', 'bg-red-500', 'text-red-400');
+                }
+            }
+        }
+
+        function toggleStartPause() {
             initAudio();
             if (isRunning) {
                 pauseTimer();
@@ -208,68 +387,118 @@
         function startTimer() {
             if (remainingSeconds <= 0) return;
             isRunning = true;
-            startPauseText.textContent = '暫停';
-            playIcon.innerHTML = '<path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zM7 8a1 1 0 012 0v4a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v4a1 1 0 102 0V8a1 1 0 00-1-1z" clip-rule="evenodd"/>';
-            statusBadge.textContent = '計時中...';
-            statusBadge.className = 'mb-2 px-3 py-1 rounded-full text-xs sm:text-sm font-semibold tracking-wider uppercase bg-blue-900/60 text-blue-300 border border-blue-700/50';
-            progressBar.className = 'bg-blue-500 h-full w-full transition-all duration-300';
+            
+            startPauseBtn.className = "flex-[2] max-w-[360px] sm:max-w-[400px] bg-amber-600 hover:bg-amber-500 text-white py-3 sm:py-4 px-6 sm:px-8 rounded-2xl font-black text-lg sm:text-xl md:text-2xl transition active:scale-95 shadow-[0_0_25px_rgba(245,158,11,0.4)] flex items-center justify-center space-x-3";
+            startPauseIcon.className = "fa-solid fa-pause";
+            startPauseText.textContent = "暫停計時";
 
-            timerId = setInterval(() => {
-                if (remainingSeconds > 0) {
-                    remainingSeconds--;
-                    updateDisplay();
-                    
-                    // 最後 5 秒短提示音
-                    if (remainingSeconds <= 5 && remainingSeconds > 0) {
-                        playBeep(440, 0.1);
-                    }
-                }
+            fsPlayBtn.className = "bg-amber-600 hover:bg-amber-500 text-white px-6 py-2.5 rounded-xl font-bold text-base border border-amber-400/40 shadow-lg flex items-center space-x-2";
+            fsPlayIcon.className = "fa-solid fa-pause";
+            fsPlayText.textContent = "暫停";
 
-                if (remainingSeconds <= 0) {
-                    clearInterval(timerId);
-                    isRunning = false;
-                    startPauseText.textContent = '開始計時';
-                    playIcon.innerHTML = '<path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z" clip-rule="evenodd"/>';
-                    statusBadge.textContent = '時間到！';
-                    statusBadge.className = 'mb-2 px-3 py-1 rounded-full text-xs sm:text-sm font-semibold tracking-wider uppercase bg-red-900/80 text-red-300 border border-red-600 animate-bounce';
-                    progressBar.className = 'bg-red-500 h-full w-full transition-all duration-300';
-                    playAlarm();
-                }
-            }, 1000);
+            updateStatus('計時進行中', 'bg-emerald-500', 'text-emerald-400');
+            
+            clearInterval(timerInterval);
+            timerInterval = setInterval(timerTick, 1000);
+            playBeep(523.25, 0.1);
         }
 
         function pauseTimer() {
             isRunning = false;
-            clearInterval(timerId);
-            startPauseText.textContent = '繼續';
-            playIcon.innerHTML = '<path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z" clip-rule="evenodd"/>';
-            if (remainingSeconds > 0 && remainingSeconds < totalSeconds) {
-                statusBadge.textContent = '已暫停';
-                statusBadge.className = 'mb-2 px-3 py-1 rounded-full text-xs sm:text-sm font-semibold tracking-wider uppercase bg-yellow-900/60 text-yellow-300 border border-yellow-700/50';
-            }
+            clearInterval(timerInterval);
+
+            startPauseBtn.className = "flex-[2] max-w-[360px] sm:max-w-[400px] bg-blue-600 hover:bg-blue-500 text-white py-3 sm:py-4 px-6 sm:px-8 rounded-2xl font-black text-lg sm:text-xl md:text-2xl transition active:scale-95 shadow-[0_0_25px_rgba(37,99,235,0.4)] flex items-center justify-center space-x-3";
+            startPauseIcon.className = "fa-solid fa-play";
+            startPauseText.textContent = "繼續計時";
+
+            fsPlayBtn.className = "bg-blue-600 hover:bg-blue-500 text-white px-6 py-2.5 rounded-xl font-bold text-base border border-blue-400/40 shadow-lg flex items-center space-x-2";
+            fsPlayIcon.className = "fa-solid fa-play";
+            fsPlayText.textContent = "繼續";
+
+            updateStatus('計時暫停', 'bg-amber-500', 'text-amber-400');
+            playBeep(329.63, 0.1);
+        }
+
+        function stopTimer() {
+            isRunning = false;
+            clearInterval(timerInterval);
+
+            startPauseBtn.className = "flex-[2] max-w-[360px] sm:max-w-[400px] bg-blue-600 hover:bg-blue-500 text-white py-3 sm:py-4 px-6 sm:px-8 rounded-2xl font-black text-lg sm:text-xl md:text-2xl transition active:scale-95 shadow-[0_0_25px_rgba(37,99,235,0.4)] flex items-center justify-center space-x-3";
+            startPauseIcon.className = "fa-solid fa-play";
+            startPauseText.textContent = "開始計時";
+
+            fsPlayBtn.className = "bg-blue-600 hover:bg-blue-500 text-white px-6 py-2.5 rounded-xl font-bold text-base border border-blue-400/40 shadow-lg flex items-center space-x-2";
+            fsPlayIcon.className = "fa-solid fa-play";
+            fsPlayText.textContent = "開始";
         }
 
         function resetTimer() {
-            pauseTimer();
+            stopTimer();
             remainingSeconds = totalSeconds;
             updateDisplay();
-            statusBadge.textContent = '準備就緒';
-            statusBadge.className = 'mb-2 px-3 py-1 rounded-full text-xs sm:text-sm font-semibold tracking-wider uppercase bg-gray-800 text-gray-400';
-            progressBar.className = 'bg-blue-600 h-full w-full transition-all duration-300';
+            updateStatus('準備就緒', 'bg-slate-500', 'text-slate-400');
+            mainBody.classList.remove('flash-alert');
+            timerCard.classList.remove('animate-urgent');
+            playBeep(392.00, 0.15);
         }
 
-        // 點擊計時器看板切換 開始/暫停
-        timerContainer.addEventListener('click', () => {
-            toggleTimer();
-        });
+        function setPreset(minutes) {
+            totalSeconds = minutes * 60;
+            remainingSeconds = totalSeconds;
+            stopTimer();
+            updateDisplay();
+            updateStatus('準備就緒', 'bg-slate-500', 'text-slate-400');
+            mainBody.classList.remove('flash-alert');
+            timerCard.classList.remove('animate-urgent');
+            playBeep(440, 0.1);
+        }
 
-        // 全螢幕切換與自動隱藏上下選單邏輯
-        fullscreenBtn.addEventListener('click', toggleFullscreen);
+        function updateStatus(text, dotColor, textColor) {
+            statusText.textContent = text;
+            statusText.className = `font-bold tracking-widest uppercase ${textColor}`;
+            statusDot.className = `w-2.5 h-2.5 rounded-full animate-pulse ${dotColor}`;
+        }
 
-        function toggleFullscreen() {
+        function openCustomModal() {
+            customModal.classList.remove('hidden');
+        }
+
+        function closeCustomModal() {
+            customModal.classList.add('hidden');
+        }
+
+        function applyCustomTime() {
+            const mins = parseInt(document.getElementById('customMinutes').value) || 0;
+            const secs = parseInt(document.getElementById('customSeconds').value) || 0;
+            const calculated = (mins * 60) + secs;
+            if (calculated > 0) {
+                totalSeconds = calculated;
+                remainingSeconds = totalSeconds;
+                stopTimer();
+                updateDisplay();
+                updateStatus('準備就緒', 'bg-slate-500', 'text-slate-400');
+                mainBody.classList.remove('flash-alert');
+                timerCard.classList.remove('animate-urgent');
+            }
+            closeCustomModal();
+        }
+
+        function toggleSound() {
+            soundEnabled = !soundEnabled;
+            if (soundEnabled) {
+                soundIcon.className = "fa-solid fa-volume-high text-emerald-400";
+                soundText.textContent = "音效開";
+                playBeep(587.33, 0.1);
+            } else {
+                soundIcon.className = "fa-solid fa-volume-xmark text-slate-500";
+                soundText.textContent = "音效關";
+            }
+        }
+
+        function toggleFullScreen() {
             if (!document.fullscreenElement) {
-                document.documentElement.requestFullscreen().catch(err => {
-                    alert(`無法切換全螢幕: ${err.message}`);
+                document.documentElement.requestFullscreen().catch((err) => {
+                    console.log('Fullscreen failed:', err.message);
                 });
             } else {
                 if (document.exitFullscreen) {
@@ -278,23 +507,35 @@
             }
         }
 
+        // Handle Fullscreen UI Modes
         document.addEventListener('fullscreenchange', () => {
-            const isFs = !!document.fullscreenElement;
-            if (isFs) {
+            if (document.fullscreenElement) {
+                mainBody.classList.add('is-fullscreen');
                 appHeader.classList.add('hidden');
                 appFooter.classList.add('hidden');
-                fullscreenBtn.textContent = '退出';
-                fsHint.classList.remove('opacity-0');
+                fullscreenControls.classList.remove('hidden');
+                fullscreenControls.classList.add('flex');
+                timerCard.classList.remove('bg-panel/60', 'border', 'border-slate-800/80', 'shadow-2xl');
+                timerCard.classList.add('bg-transparent');
             } else {
+                mainBody.classList.remove('is-fullscreen');
                 appHeader.classList.remove('hidden');
                 appFooter.classList.remove('hidden');
-                fullscreenBtn.innerHTML = `<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4"/></svg><span>全螢幕</span>`;
-                fsHint.classList.add('opacity-0');
+                fullscreenControls.classList.add('hidden');
+                fullscreenControls.classList.remove('flex');
+                timerCard.classList.add('bg-panel/60', 'border', 'border-slate-800/80', 'shadow-2xl');
+                timerCard.classList.remove('bg-transparent');
             }
         });
 
-        // 初始化
-        updateDisplay();
+        // Click anywhere on timer card to toggle start/pause
+        timerCard.addEventListener('click', () => {
+            toggleStartPause();
+        });
+
+        window.onload = function() {
+            updateDisplay();
+        };
     </script>
 </body>
 </html>
