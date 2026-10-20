@@ -119,7 +119,12 @@
         </div>
 
         <div class="flex items-center space-x-2 sm:space-x-3">
-            <!-- 新增：手機安裝導引按鈕 -->
+            <!-- 螢幕長亮切換按鈕 -->
+            <button id="wakeLockBtn" onclick="toggleWakeLock()" class="bg-slate-800/80 hover:bg-slate-700 text-slate-300 hover:text-white px-3 py-2 sm:py-2.5 rounded-xl border border-slate-700/60 transition flex items-center space-x-1.5 text-xs sm:text-sm font-medium shadow-lg">
+                <i id="wakeLockIcon" class="fa-solid fa-lightbulb text-slate-500"></i>
+                <span id="wakeLockText" class="hidden sm:inline">螢幕長亮關</span>
+            </button>
+            <!-- 手機安裝導引按鈕 -->
             <button onclick="openInstallGuide()" class="bg-blue-900/40 hover:bg-blue-900/60 text-blue-300 hover:text-blue-200 px-3 py-2 sm:py-2.5 rounded-xl border border-blue-700/50 transition flex items-center space-x-1.5 text-xs sm:text-sm font-medium shadow-lg">
                 <i class="fa-solid fa-mobile-screen-button"></i>
                 <span class="hidden sm:inline">安裝App</span>
@@ -276,6 +281,10 @@
         let soundEnabled = true;
         let audioCtx = null;
         let isFullscreenMode = false;
+        
+        // 螢幕長亮相關變數
+        let wakeLock = null;
+        let wakeLockEnabled = false;
 
         const minutesDisplay = document.getElementById('minutesDisplay');
         const secondsDisplay = document.getElementById('secondsDisplay');
@@ -297,6 +306,8 @@
         const installModal = document.getElementById('installModal');
         const soundIcon = document.getElementById('soundIcon');
         const soundText = document.getElementById('soundText');
+        const wakeLockIcon = document.getElementById('wakeLockIcon');
+        const wakeLockText = document.getElementById('wakeLockText');
         const fullscreenControls = document.getElementById('fullscreenControls');
 
         function initAudio() {
@@ -307,6 +318,58 @@
                 audioCtx.resume();
             }
         }
+
+        // 請求螢幕長亮 (Wake Lock API)
+        async function requestWakeLock() {
+            if (!('wakeLock' in navigator)) return;
+            try {
+                wakeLock = await navigator.wakeLock.request('screen');
+                wakeLockEnabled = true;
+                wakeLockIcon.className = "fa-solid fa-lightbulb text-amber-400 animate-pulse";
+                wakeLockText.textContent = "螢幕長亮開";
+
+                wakeLock.addEventListener('release', () => {
+                    wakeLock = null;
+                });
+            } catch (err) {
+                console.log('Wake Lock error:', err);
+            }
+        }
+
+        // 釋放螢幕長亮
+        async function releaseWakeLock() {
+            if (wakeLock !== null) {
+                try {
+                    await wakeLock.release();
+                    wakeLock = null;
+                } catch (err) {
+                    console.log('Wake Lock release error:', err);
+                }
+            }
+            wakeLockEnabled = false;
+            wakeLockIcon.className = "fa-solid fa-lightbulb text-slate-500";
+            wakeLockText.textContent = "螢幕長亮關";
+        }
+
+        // 手動切換螢幕長亮
+        async function toggleWakeLock() {
+            if (!('wakeLock' in navigator)) {
+                alert('您的瀏覽器不支援螢幕長亮功能');
+                return;
+            }
+            if (wakeLockEnabled) {
+                await releaseWakeLock();
+            } else {
+                await requestWakeLock();
+            }
+        }
+
+        // 當頁面切換回可見狀態時，若之前有開啟長亮則自動重新取得
+        document.addEventListener('visibilitychange', async () => {
+            if (wakeLockEnabled && document.visibilityState === 'visible') {
+                await requestWakeLock();
+            }
+        });
 
         function playBeep(freq = 440, duration = 0.15, type = 'sine') {
             if (!soundEnabled) return;
@@ -401,6 +464,9 @@
             if (remainingSeconds <= 0) return;
             isRunning = true;
             
+            // 自動開啟螢幕長亮以防止計時中黑屏
+            requestWakeLock();
+
             startPauseBtn.className = "flex-[2] max-w-[360px] sm:max-w-[400px] bg-amber-600 hover:bg-amber-500 text-white py-3 sm:py-4 px-6 sm:px-8 rounded-2xl font-black text-lg sm:text-xl md:text-2xl transition active:scale-95 shadow-[0_0_25px_rgba(245,158,11,0.4)] flex items-center justify-center space-x-3";
             startPauseIcon.className = "fa-solid fa-pause";
             startPauseText.textContent = "暫停計時";
