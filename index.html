@@ -149,6 +149,14 @@
                 <span id="statusText">準備就緒</span>
             </div>
 
+            <!-- 停止鈴聲快捷按鈕 (時間到且鈴聲響起時顯示) -->
+            <div id="stopAlarmContainer" class="mb-3 hidden">
+                <button onclick="event.stopPropagation(); stopAlarmSound();" class="bg-red-600 hover:bg-red-500 text-white px-5 py-2 rounded-xl font-bold text-xs sm:text-sm shadow-[0_0_15px_rgba(239,68,68,0.6)] flex items-center space-x-2 animate-bounce">
+                    <i class="fa-solid fa-bell-slash"></i>
+                    <span>停止鈴聲</span>
+                </button>
+            </div>
+
             <div id="displayContainer" class="flex items-center justify-center text-slate-100 font-mono-time my-2 sm:my-4">
                 <div class="flex flex-col items-center">
                     <span id="minutesDisplay" class="timer-number font-extrabold tracking-tight drop-shadow-[0_10px_30px_rgba(0,0,0,0.9)]">25</span>
@@ -277,6 +285,7 @@
         let totalSeconds = 1500;
         let remainingSeconds = 1500;
         let timerInterval = null;
+        let alarmInterval = null;
         let isRunning = false;
         let soundEnabled = true;
         let audioCtx = null;
@@ -304,6 +313,7 @@
         const appFooter = document.getElementById('appFooter');
         const customModal = document.getElementById('customModal');
         const installModal = document.getElementById('installModal');
+        const stopAlarmContainer = document.getElementById('stopAlarmContainer');
         const soundIcon = document.getElementById('soundIcon');
         const soundText = document.getElementById('soundText');
         const wakeLockIcon = document.getElementById('wakeLockIcon');
@@ -319,7 +329,6 @@
             }
         }
 
-        // 請求螢幕長亮 (Wake Lock API)
         async function requestWakeLock() {
             if (!('wakeLock' in navigator)) return;
             try {
@@ -336,7 +345,6 @@
             }
         }
 
-        // 釋放螢幕長亮
         async function releaseWakeLock() {
             if (wakeLock !== null) {
                 try {
@@ -351,7 +359,6 @@
             wakeLockText.textContent = "螢幕長亮關";
         }
 
-        // 手動切換螢幕長亮
         async function toggleWakeLock() {
             if (!('wakeLock' in navigator)) {
                 alert('您的瀏覽器不支援螢幕長亮功能');
@@ -364,7 +371,6 @@
             }
         }
 
-        // 當頁面切換回可見狀態時，若之前有開啟長亮則自動重新取得
         document.addEventListener('visibilitychange', async () => {
             if (wakeLockEnabled && document.visibilityState === 'visible') {
                 await requestWakeLock();
@@ -390,7 +396,7 @@
             }
         }
 
-        function playFinalAlarm() {
+        function playFinalAlarmOnce() {
             if (!soundEnabled) return;
             try {
                 initAudio();
@@ -412,42 +418,66 @@
             }
         }
 
+        // 開始循環播放鈴聲
+        function startAlarmLoop() {
+            if (!soundEnabled) return;
+            playFinalAlarmOnce();
+            if (!alarmInterval) {
+                alarmInterval = setInterval(() => {
+                    playFinalAlarmOnce();
+                }, 2000); // 每 2 秒重複一次警示音
+            }
+            stopAlarmContainer.classList.remove('hidden');
+        }
+
+        // 停止鈴聲
+        function stopAlarmSound() {
+            if (alarmInterval) {
+                clearInterval(alarmInterval);
+                alarmInterval = null;
+            }
+            stopAlarmContainer.classList.add('hidden');
+        }
+
         function updateDisplay() {
-            const mins = Math.floor(remainingSeconds / 60);
-            const secs = remainingSeconds % 60;
+            const isNegative = remainingSeconds < 0;
+            const absSecs = Math.abs(remainingSeconds);
+            const mins = Math.floor(absSecs / 60);
+            const secs = absSecs % 60;
             
-            minutesDisplay.textContent = String(mins).padStart(2, '0');
+            // 如果是負數，分鐘前面加上負號
+            minutesDisplay.textContent = (isNegative ? '-' : '') + String(mins).padStart(2, '0');
             secondsDisplay.textContent = String(secs).padStart(2, '0');
 
-            const percentage = totalSeconds > 0 ? (remainingSeconds / totalSeconds) * 100 : 0;
+            const percentage = totalSeconds > 0 ? Math.max(0, (remainingSeconds / totalSeconds) * 100) : 0;
             progressBar.style.width = `${percentage}%`;
 
-            if (remainingSeconds <= 10 && remainingSeconds > 0) {
+            if (remainingSeconds < 0) {
+                // 超時負數狀態
+                timerCard.classList.add('animate-urgent', 'border-red-500');
+                mainBody.classList.add('flash-alert');
+                progressBar.className = "bg-red-500 h-full transition-all duration-300 rounded-full shadow-[0_0_12px_rgba(239,68,68,0.8)]";
+            } else if (remainingSeconds <= 10 && remainingSeconds > 0) {
                 timerCard.classList.add('animate-urgent', 'border-red-500/50');
                 progressBar.className = "bg-red-500 h-full transition-all duration-300 rounded-full shadow-[0_0_12px_rgba(239,68,68,0.8)]";
-            } else if (remainingSeconds === 0) {
-                timerCard.classList.remove('animate-urgent');
-                timerCard.classList.add('border-red-600');
-                mainBody.classList.add('flash-alert');
             } else {
-                timerCard.classList.remove('animate-urgent', 'border-red-500/50', 'border-red-600');
+                timerCard.classList.remove('animate-urgent', 'border-red-500/50', 'border-red-500');
                 mainBody.classList.remove('flash-alert');
                 progressBar.className = "bg-blue-500 h-full transition-all duration-300 rounded-full shadow-[0_0_12px_rgba(59,130,246,0.6)]";
             }
         }
 
         function timerTick() {
-            if (remainingSeconds > 0) {
-                remainingSeconds--;
-                if (remainingSeconds <= 10 && remainingSeconds > 0) {
-                    playBeep(600, 0.1);
-                }
-                updateDisplay();
-                if (remainingSeconds === 0) {
-                    stopTimer();
-                    playFinalAlarm();
-                    updateStatus('時間到！', 'bg-red-500', 'text-red-400');
-                }
+            remainingSeconds--; // 允許繼續往下扣變成負數
+            if (remainingSeconds <= 10 && remainingSeconds > 0) {
+                playBeep(600, 0.1);
+            }
+            updateDisplay();
+
+            if (remainingSeconds === 0) {
+                playFinalAlarmOnce();
+                startAlarmLoop();
+                updateStatus('時間到！加時中', 'bg-red-500', 'text-red-400');
             }
         }
 
@@ -461,10 +491,7 @@
         }
 
         function startTimer() {
-            if (remainingSeconds <= 0) return;
             isRunning = true;
-            
-            // 自動開啟螢幕長亮以防止計時中黑屏
             requestWakeLock();
 
             startPauseBtn.className = "flex-[2] max-w-[360px] sm:max-w-[400px] bg-amber-600 hover:bg-amber-500 text-white py-3 sm:py-4 px-6 sm:px-8 rounded-2xl font-black text-lg sm:text-xl md:text-2xl transition active:scale-95 shadow-[0_0_25px_rgba(245,158,11,0.4)] flex items-center justify-center space-x-3";
@@ -475,7 +502,11 @@
             fsPlayIcon.className = "fa-solid fa-pause";
             fsPlayText.textContent = "暫停";
 
-            updateStatus('計時進行中', 'bg-emerald-500', 'text-emerald-400');
+            if (remainingSeconds <= 0) {
+                updateStatus('加時進行中', 'bg-red-500', 'text-red-400');
+            } else {
+                updateStatus('計時進行中', 'bg-emerald-500', 'text-emerald-400');
+            }
             
             clearInterval(timerInterval);
             timerInterval = setInterval(timerTick, 1000);
@@ -501,6 +532,7 @@
         function stopTimer() {
             isRunning = false;
             clearInterval(timerInterval);
+            stopAlarmSound();
 
             startPauseBtn.className = "flex-[2] max-w-[360px] sm:max-w-[400px] bg-blue-600 hover:bg-blue-500 text-white py-3 sm:py-4 px-6 sm:px-8 rounded-2xl font-black text-lg sm:text-xl md:text-2xl transition active:scale-95 shadow-[0_0_25px_rgba(37,99,235,0.4)] flex items-center justify-center space-x-3";
             startPauseIcon.className = "fa-solid fa-play";
@@ -579,6 +611,7 @@
             } else {
                 soundIcon.className = "fa-solid fa-volume-xmark text-slate-500";
                 soundText.textContent = "音效關";
+                stopAlarmSound();
             }
         }
 
