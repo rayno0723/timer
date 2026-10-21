@@ -290,6 +290,7 @@
         let soundEnabled = true;
         let audioCtx = null;
         let isFullscreenMode = false;
+        let alarmStopped = false; // 用於追蹤是否已手動停止鈴聲與閃爍畫面
         
         // 螢幕長亮相關變數
         let wakeLock = null;
@@ -418,25 +419,28 @@
             }
         }
 
-        // 開始循環播放鈴聲
         function startAlarmLoop() {
-            if (!soundEnabled) return;
+            if (!soundEnabled || alarmStopped) return;
             playFinalAlarmOnce();
             if (!alarmInterval) {
                 alarmInterval = setInterval(() => {
-                    playFinalAlarmOnce();
-                }, 2000); // 每 2 秒重複一次警示音
+                    if (!alarmStopped) {
+                        playFinalAlarmOnce();
+                    }
+                }, 2000);
             }
             stopAlarmContainer.classList.remove('hidden');
         }
 
-        // 停止鈴聲
+        // 停止鈴聲與畫面閃爍
         function stopAlarmSound() {
             if (alarmInterval) {
                 clearInterval(alarmInterval);
                 alarmInterval = null;
             }
+            alarmStopped = true;
             stopAlarmContainer.classList.add('hidden');
+            mainBody.classList.remove('flash-alert');
         }
 
         function updateDisplay() {
@@ -445,7 +449,6 @@
             const mins = Math.floor(absSecs / 60);
             const secs = absSecs % 60;
             
-            // 如果是負數，分鐘前面加上負號
             minutesDisplay.textContent = (isNegative ? '-' : '') + String(mins).padStart(2, '0');
             secondsDisplay.textContent = String(secs).padStart(2, '0');
 
@@ -453,9 +456,12 @@
             progressBar.style.width = `${percentage}%`;
 
             if (remainingSeconds < 0) {
-                // 超時負數狀態
                 timerCard.classList.add('animate-urgent', 'border-red-500');
-                mainBody.classList.add('flash-alert');
+                if (!alarmStopped) {
+                    mainBody.classList.add('flash-alert');
+                } else {
+                    mainBody.classList.remove('flash-alert');
+                }
                 progressBar.className = "bg-red-500 h-full transition-all duration-300 rounded-full shadow-[0_0_12px_rgba(239,68,68,0.8)]";
             } else if (remainingSeconds <= 10 && remainingSeconds > 0) {
                 timerCard.classList.add('animate-urgent', 'border-red-500/50');
@@ -468,13 +474,14 @@
         }
 
         function timerTick() {
-            remainingSeconds--; // 允許繼續往下扣變成負數
+            remainingSeconds--;
             if (remainingSeconds <= 10 && remainingSeconds > 0) {
                 playBeep(600, 0.1);
             }
             updateDisplay();
 
             if (remainingSeconds === 0) {
+                alarmStopped = false; // 時間到重設停止狀態
                 playFinalAlarmOnce();
                 startAlarmLoop();
                 updateStatus('時間到！加時中', 'bg-red-500', 'text-red-400');
@@ -545,6 +552,7 @@
 
         function resetTimer() {
             stopTimer();
+            alarmStopped = false;
             remainingSeconds = totalSeconds;
             updateDisplay();
             updateStatus('準備就緒', 'bg-slate-500', 'text-slate-400');
@@ -557,6 +565,7 @@
             totalSeconds = minutes * 60;
             remainingSeconds = totalSeconds;
             stopTimer();
+            alarmStopped = false;
             updateDisplay();
             updateStatus('準備就緒', 'bg-slate-500', 'text-slate-400');
             mainBody.classList.remove('flash-alert');
@@ -594,6 +603,7 @@
                 totalSeconds = calculated;
                 remainingSeconds = totalSeconds;
                 stopTimer();
+                alarmStopped = false;
                 updateDisplay();
                 updateStatus('準備就緒', 'bg-slate-500', 'text-slate-400');
                 mainBody.classList.remove('flash-alert');
